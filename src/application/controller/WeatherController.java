@@ -19,6 +19,7 @@ import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathFactory;
 
 import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.w3c.dom.Document;
 
@@ -44,7 +45,7 @@ public class WeatherController implements EventHandler
 	private String latitude, longitude, isp, 
 	//developerAPIKey = "da16336962592e022a90a30895ec83b3"; // Charles's developer key
 	temperature, condition, status = "OK", errMsg = "None",
-	icon, postcode = "San Antonio", formattedAddress;
+	icon, formattedAddress;
 	// If the site returns an error with retrieving information
 	//  then update the key to a new key
 	private String developerAPIKey = "714eda33e43cde0ca430cedc8fa306a7"; // Ko's developer key
@@ -70,7 +71,6 @@ public class WeatherController implements EventHandler
 			{
 				latitude = latLongs[0];
 				longitude = latLongs[1];
-				tryWeatherCaptureUntilSuccess();
 			}
 			weatherDataCapture();
 			setLabels();
@@ -87,8 +87,6 @@ public class WeatherController implements EventHandler
 		progIndicator.setOpacity(1);
 		progIndicator.setProgress(-1);
 		
-		// Sets the post code to the value in the city location text field
-		postcode = cityLocation.getText();
 		startThread();
 	}
 	
@@ -107,7 +105,6 @@ public class WeatherController implements EventHandler
         		{
         			latitude = latLongs[0];
         			longitude = latLongs[1];
-        			tryWeatherCaptureUntilSuccess();
         		}
         		Thread.sleep(50);
                 publish(1);
@@ -206,26 +203,6 @@ public class WeatherController implements EventHandler
 			errMsg = err + ""; // Stores error in variable
 		}
 	}
-	
-	private void tryWeatherCaptureUntilSuccess()
-	{
-		weatherDataCapture();
-		if(!errMsg.equals("None") && !errMsg.contains("minutely"))
-		{
-			while(!errMsg.equals("None"))
-			{
-				weatherDataCapture();
-			}
-		}
-		else if(errMsg.contains("minutely"))
-		{
-			return;
-		}
-		else if(errMsg.contains("ZERO_RESULTS"))
-		{
-			return;
-		}
-	}
 
 	// Sets the weather image to the corresponding image
 	private void currentWeather(String condition)
@@ -309,22 +286,21 @@ public class WeatherController implements EventHandler
 			BufferedReader in = new BufferedReader(new InputStreamReader(
 			                whatismyip.openStream()));
 			String ip = in.readLine(); //you get the IP as a String
-			System.out.println(ip);
+//			System.out.println(ip);
 			String request = "http://api.ipstack.com/" + ip + "?access_key=" + devIPAPIKey;
 			URL url = new URL(request);
-			System.out.println(url);
+//			System.out.println(url);
 			
 			JSONObject json = new JSONObject(IOUtils.toString((url), Charset.forName("UTF-8")));
 			latitude = json.get("latitude").toString();
 			longitude = json.get("longitude").toString();
 			formattedAddress += " " + json.get("city").toString();
 			formattedAddress += ", " + json.get("region_code").toString();
-			formattedAddress += ", " + json.get("zip").toString();
 			formattedAddress += ", " + json.get("country_code").toString();
 		} catch (Exception e){
 			System.out.println(e);
 		}
-		System.out.println("Formatted address: " + formattedAddress);
+//		System.out.println("Formatted address: " + formattedAddress);
 		return null;
 	}
 	
@@ -333,40 +309,46 @@ public class WeatherController implements EventHandler
 	private String[] getLatLongPositions()
     {
 		int responseCode;
+		formattedAddress = "";
 		String temp = cityLocation.getText();
 		temp = temp.replaceAll("\\s+", "");
 		String api = "http://www.mapquestapi.com/geocoding/v1/address?key=" + devGeolocationAPIKey + "&location=" + temp;
 		try{
 			URL url = new URL(api);
-			HttpURLConnection httpConnection = (HttpURLConnection)url.openConnection();
-			httpConnection.connect();
-			responseCode = httpConnection.getResponseCode();
-			System.out.println(responseCode);
-			if(responseCode == 200)
+			
+			JSONObject json = new JSONObject(IOUtils.toString((url), Charset.forName("UTF-8")));
+			
+			JSONArray jsonArr = json.getJSONArray("results");
+			responseCode = json.getJSONObject("info").getInt("statuscode");
+//			System.out.println(responseCode);
+			if(responseCode == 0)
 			{
-				DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-				Document document = builder.parse(httpConnection.getInputStream());
-				XPathFactory xPathfactory = XPathFactory.newInstance();
-				XPath xpath = xPathfactory.newXPath();
-				XPathExpression expr = xpath.compile("/response/info/statusCode");
-				status = (String)expr.evaluate(document, XPathConstants.STRING);
-				System.out.println(status);
-				if(status.equals("0"))
-	  	      	{
-	  	           	expr = xpath.compile("//results/locations/location/displayLatLng/latLng/lng");
-	  	           	String latitude = (String)expr.evaluate(document, XPathConstants.STRING);
-	  	           	expr = xpath.compile("//results/locations/location/displayLatLng/latLng/lng");
-	  	           	String longitude = (String)expr.evaluate(document, XPathConstants.STRING);
-	  	           	expr = xpath.compile("//results/result/providedLocation");
-		           	formattedAddress = (String)expr.evaluate(document, XPathConstants.STRING);
-	  	           	errMsg = "None";
-	  	           	return new String[] {latitude, longitude, formattedAddress};
-	  	      	}
-				else
-				{
-					errMsg = (status);
-					System.out.println(errMsg);
-				}
+				JSONObject jObj = jsonArr.getJSONObject(0);
+				JSONArray locations_components_arr = jObj.getJSONArray("locations");
+				JSONObject jObj2 = locations_components_arr.getJSONObject(0);
+				if(!jObj2.get("adminArea5").toString().equals(""))
+					formattedAddress += jObj2.get("adminArea5").toString() + ", ";
+				if(!jObj2.get("adminArea3").toString().equals(""))
+					formattedAddress += jObj2.get("adminArea3").toString() + ", ";
+				if(!jObj2.get("adminArea1").toString().equals(""))
+					formattedAddress += jObj2.get("adminArea1").toString();
+				
+				double longit = (double) jObj2.getJSONObject("displayLatLng").get("lng");
+				double latit = (double) jObj2.getJSONObject("displayLatLng").get("lat"); 
+				latitude = latit + "";
+				longitude = longit + "";
+				
+//				System.out.println(formattedAddress);
+//	  	        System.out.println(jObj + "\n" + jObj2 + "\n" + latit + "," + longit);
+	  	        errMsg = "None";
+	  	        status = "OK";
+	  	        return new String[] {latitude, longitude, formattedAddress};
+			}
+			else
+			{
+				status = responseCode + "";
+				errMsg = (status);
+				System.out.println(errMsg);
 			}
 		} catch(Exception e){
 			System.out.println(e);
