@@ -1,0 +1,36 @@
+.logbodybg{
+    -fx-background-image: url("/resources/drawable/login_background.png");
+}
+
+.uibodybg{
+    -fx-background-image: url("/resources/drawable/utsacolor.png");
+}
+
+.uiheaderbg{
+    -fx-background-image: url("/resources/drawable/utsaheadercolor.png");
+}
+
+.blackboardapp{
+    -fx-background-image: url("/resources/drawable/blackboard_icon.png");
+}
+
+.toolbarHover {
+    -fx-cursor: hand;
+}
+
+.text{
+    -fx-text-fill: white;
+    -fx-border-radius: 0;
+}
+
+.custom-dashed-border {
+    -fx-border-color: white;
+    -fx-border-style: solid solid solid solid;
+    -fx-border-width: 0.5 0.5 0.5 0.5;
+}
+
+.custom-dashed-grip {
+    -fx-border-color: white;
+    -fx-border-style: solid solid solid solid;
+    -fx-border-width: 0.3 0 0 0;
+}
